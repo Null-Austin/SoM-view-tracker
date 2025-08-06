@@ -58,7 +58,9 @@ app.get('/svg/views/:uuid', (req, res) => {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.setHeader('Surrogate-Control', 'no-store');
-    res.sendFile(path.join(__dirname, 'svg.svg'));
+    res.type('svg').send(
+        ejs.render(svg,get(uuid))
+    )
 });
 
 app.listen(port,err=>{
