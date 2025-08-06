@@ -1,5 +1,0 @@
-h1.text-2xl > a:nth-child(1) > span:nth-child(1)::after{
-    content: "(views: x)";
-    color: gray;
-    font-size: 12px;
-}

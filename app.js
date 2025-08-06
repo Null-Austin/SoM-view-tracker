@@ -14,8 +14,8 @@ db.prepare(`CREATE table IF NOT EXISTS users (uuid,ips,unique_views,views)`).run
 const app = express()
 
 // endpoints
-app.get('/css/views/',(req,res)=>{
-    res.sendFile(path.join(__dirname,'stylesheet.css'))
+app.get('/svg/views/',(req,res)=>{
+    res.sendFile(path.join(__dirname,'svg.svg'))
 })
 
 app.listen(port,err=>{
