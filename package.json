@@ -1,0 +1,24 @@
+{
+  "name": "somviews",
+  "version": "1.0.0",
+  "description": "Tracks your profile views on SoM, requires css",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Null-Austin/SoM-view-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Null-Austin/SoM-view-tracker/issues"
+  },
+  "homepage": "https://github.com/Null-Austin/SoM-view-tracker#readme",
+  "dependencies": {
+    "express": "^5.1.0",
+    "path": "^0.12.7"
+  }
+}
