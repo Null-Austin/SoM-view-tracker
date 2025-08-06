@@ -45,11 +45,21 @@ const app = express()
 
 // endpoints
 app.get('/',(req,res)=>{
-    res.send('hi')
+    ejs.renderFile(path.join(__dirname,'pages','index.html'),(err,str)=>{
+        if (err){
+            return res.status(500).send('Error rendering index page')
+        }
+        res.send(str)
+    })
 })
 
 app.get('/docs',(req,res)=>{
-    res.send('hii')
+    ejs.renderFile(path.join(__dirname,'pages','docs.html'),(err,str)=>{
+        if (err){
+            return res.status(500).send('Error rendering docs page')
+        }
+        res.send(str)
+    })
 })
 
 fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
