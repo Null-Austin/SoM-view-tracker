@@ -44,6 +44,14 @@ function get(uuid){
 const app = express()
 
 // endpoints
+app.get('/',(req,res)=>{
+    res.send('hi')
+})
+
+app.get('/docs',(req,res)=>{
+    res.send('hii')
+})
+
 fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
     const svg = fs.readFileSync(path.join(__dirname,'svgs',_svg), 'utf8')
     app.get(`/svg/views/:uuid/${_svg}`,(req,res)=>{
