@@ -10,7 +10,7 @@ const crypto = require('crypto')
 const ejs = require('ejs')
 
 // get svg
-const svg = fs.readFileSync(path.join(__dirname,'svg.svg'))
+const svg = fs.readFileSync(path.join(__dirname,'svg.svg'), 'utf8')
 
 // setting up db
 let db = _db(path.join(__dirname,'db.db'))
@@ -40,6 +40,7 @@ function add(uuid, ip) {
 }
 function get(uuid){
     const getUser = db.prepare('SELECT * FROM users WHERE uuid = ?').get(uuid)
+    return getUser || { uuid: uuid, views: 0, unique_views: 0 }
 }
 
 // set up app
