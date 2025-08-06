@@ -4,7 +4,7 @@
   "description": "Tracks your profile views on SoM, requires css",
   "main": "index.js",
   "scripts": {
-    "start":"node app.js"
+    "start": "node app.js"
   },
   "repository": {
     "type": "git",
@@ -19,6 +19,7 @@
   "homepage": "https://github.com/Null-Austin/SoM-view-tracker#readme",
   "dependencies": {
     "better-sqlite3": "^12.2.0",
+    "ejs": "^3.1.10",
     "express": "^5.1.0",
     "path": "^0.12.7"
   }

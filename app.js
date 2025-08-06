@@ -3,9 +3,14 @@ const port = process.env.trackerport || 3000
 
 // packages
 const express = require('express')
+const fs = require('fs')
 const path = require('node:path')
 const _db = require('better-sqlite3')
 const crypto = require('crypto')
+const ejs = require('ejs')
+
+// get svg
+const svg = fs.readFileSync(path.join(__dirname,'svg.svg'))
 
 // setting up db
 let db = _db(path.join(__dirname,'db.db'))
@@ -14,8 +19,7 @@ db.prepare(`CREATE table IF NOT EXISTS users (uuid default 0,ips default "[]",un
 function add(uuid, ip) {
     const hashedIp = crypto.createHash('sha256').update(ip).digest('hex')
     
-    const getUser = db.prepare('SELECT * FROM users WHERE uuid = ?')
-    let user = getUser.get(uuid)
+    let user = db.prepare('SELECT * FROM users WHERE uuid = ?').get(uuid)
     
     if (!user) {
         const createUser = db.prepare('INSERT INTO users (uuid, ips, unique_views, views) VALUES (?, ?, ?, ?)')
@@ -33,6 +37,9 @@ function add(uuid, ip) {
             updateViews.run(uuid)
         }
     }
+}
+function get(uuid){
+    const getUser = db.prepare('SELECT * FROM users WHERE uuid = ?').get(uuid)
 }
 
 // set up app
