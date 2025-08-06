@@ -9,9 +9,6 @@ const _db = require('better-sqlite3')
 const crypto = require('crypto')
 const ejs = require('ejs')
 
-// get svg
-const svg = fs.readFileSync(path.join(__dirname,'svg.svg'), 'utf8')
-
 // setting up db
 let db = _db(path.join(__dirname,'db.db'))
 db.prepare(`CREATE table IF NOT EXISTS users (uuid default 0,ips default "[]",unique_views default 0,views default 0)`).run()
@@ -47,22 +44,42 @@ function get(uuid){
 const app = express()
 
 // endpoints
-app.get('/svg/views/:uuid', (req, res) => {
-    let uuid = req.params.uuid
-    let ip = req.ip || req.connection.remoteAddress || req.socket.remoteAddress
+fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
+    const svg = fs.readFileSync(path.join(__dirname,'svgs',_svg), 'utf8')
+    app.get(`/svg/views/:uuid/${_svg}`,(req,res)=>{
+        let uuid = req.params.uuid
+        let ip = req.headers['x-forwarded-for']?.split(',').shift()?.trim() || req.ip || req.connection.remoteAddress || req.socket.remoteAddress
+        add(uuid, ip)
+        
+        console.log(uuid)
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+        res.type('svg').send(
+            ejs.render(svg,get(uuid))
+        )
+    })
+})
+app.get('/svg/views/:x/:y',(req,res)=>{
+    res.redirect('/')
+})
+// app.get('/svg/views/:uuid', (req, res) => {
+//     let uuid = req.params.uuid
+//     let ip = req.ip || req.connection.remoteAddress || req.socket.remoteAddress
     
-    // Track the view
-    add(uuid, ip)
+//     // Track the view
+//     add(uuid, ip)
     
-    console.log(uuid)
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
-    res.type('svg').send(
-        ejs.render(svg,get(uuid))
-    )
-});
+//     console.log(uuid)
+//     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+//     res.setHeader('Pragma', 'no-cache');
+//     res.setHeader('Expires', '0');
+//     res.setHeader('Surrogate-Control', 'no-store');
+//     res.type('svg').send(
+//         ejs.render(svg,get(uuid))
+//     )
+// });
 
 app.listen(port,err=>{
     if (err){
