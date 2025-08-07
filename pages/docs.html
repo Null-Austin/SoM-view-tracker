@@ -119,6 +119,71 @@
             text-align: center;
             margin-top: 24px;
         }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .modal-content {
+            background: #232323;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #2a2a2a;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            border-radius: 5px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #353535;
+            padding-bottom: 10px;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: #fff;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .close:hover,
+        .close:focus {
+            color: #fff;
+        }
+        
+        .open-modal-btn {
+            background: #4a4a4a;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-family: inherit;
+            border-radius: 3px;
+            margin: 10px 0;
+        }
+        
+        .open-modal-btn:hover {
+            background: #666;
+        }
     </style>
 </head>
 <body>
@@ -148,19 +213,9 @@
 
         <div class="section">
             <h2>Usage</h2>
-            <p>By adding the following code to your SoM user page, you should be able to see the views.</p>
-            <code style="color: gray;">
-                h1.text-2xl > a:nth-child(1) > span:nth-child(1)::after {<br>
-                content: "";<br>
-                display: inline-block;<br>
-                width: 3em;<br>
-                height: 1em;<br>
-                background: url('https://eleven-deficit-formats-white.trycloudflare.com/svg/views/CHANGE_ME_TO_UUID/dark.svg') no-repeat center center;<br>
-                background-size: contain;<br>
-                vertical-align: middle;<br>
-            }</code>
-            <p>Any by chaninging the "CHANGE_ME_TO_UUID" part, should get it to work</p>
-
+            <p>Add a view counter badge to your SoM user page using CSS.</p>
+            <button class="open-modal-btn" onclick="openModal()">🎨 Generate CSS Code</button>
+            <p><strong>Instructions:</strong> Click the button above to generate the CSS code, then copy and paste it into your SoM user page CSS.</p>
         </div>
 
         <div class="section">
@@ -195,47 +250,81 @@
         </div>
     </div>
 
-    <script>
-        // Auto-populate domain with current location
-        document.addEventListener('DOMContentLoaded', function() {
-            const domainInput = document.getElementById('domain');
-            domainInput.value = window.location.origin;
-        });
+    <!-- CSS Generator Modal -->
+    <div id="cssModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>CSS Code Generator</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="generator">
+                <div class="form-group">
+                    <label for="css-uuid">Your UUID:</label>
+                    <input type="text" id="css-uuid" placeholder="Enter your UUID here">
+                </div>
+                <div class="form-group">
+                    <label for="css-style">Badge Style:</label>
+                    <select id="css-style">
+                        <option value="dark.svg">Dark</option>
+                        <option value="default.svg">Default</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="generateCssCode()">Generate CSS Code</button>
+                <div id="css-result" class="result" style="display: none;"></div>
+            </div>
+            <p><strong>How to use:</strong> Copy the generated CSS code and add it to your SoM user page stylesheet.</p>
+        </div>
+    </div>
 
-        function generateUrls() {
-            const domain = document.getElementById('domain').value.trim();
-            const uuid = document.getElementById('uuid').value.trim();
-            const style = document.getElementById('style').value;
+    <script>
+        function openModal() {
+            document.getElementById('cssModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('cssModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('cssModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        function generateCssCode() {
+            const uuid = document.getElementById('css-uuid').value.trim();
+            const style = document.getElementById('css-style').value;
             
             if (!uuid) {
                 alert('Please enter a UUID');
                 return;
             }
             
-            // Clean up domain (remove trailing slash)
-            const cleanDomain = domain.replace(/\/$/, '');
+            // Use current domain
+            const currentDomain = window.location.origin;
+            const cssUrl = `${currentDomain}/svg/views/${uuid}/${style}`;
             
-            // Generate URLs
-            const directUrl = `${cleanDomain}/svg/views/${uuid}/${style}`;
-            const markdownCode = `![Views](${directUrl})`;
-            const htmlCode = `<img src="${directUrl}" alt="Views">`;
+            const cssCode = `h1.text-2xl > a:nth-child(1) > span:nth-child(1)::after {
+    content: "";
+    display: inline-block;
+    width: 3em;
+    height: 1em;
+    background: url('${cssUrl}') no-repeat center center;
+    background-size: contain;
+    vertical-align: middle;
+}`;
             
-            // Display results
-            document.getElementById('direct-url').textContent = directUrl;
-            document.getElementById('markdown-code').textContent = markdownCode;
-            document.getElementById('html-code').textContent = htmlCode;
-            
-            // Show preview
-            const previewDiv = document.getElementById('preview');
-            previewDiv.innerHTML = `<img src="${directUrl}" alt="Preview" style="max-width: 100%;">`;
-            
-            document.getElementById('results').style.display = 'block';
+            // Display result
+            document.getElementById('css-result').innerHTML = `<pre>${cssCode}</pre>`;
+            document.getElementById('css-result').style.display = 'block';
         }
-        
-        // Allow Enter key to generate URLs
+
+        // Allow Enter key to generate CSS code
         document.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                generateUrls();
+            if (event.key === 'Enter' && event.target.id === 'css-uuid') {
+                generateCssCode();
             }
         });
     </script>
