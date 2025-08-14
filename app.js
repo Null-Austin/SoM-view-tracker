@@ -15,6 +15,14 @@ const path = require('node:path')
 const _db = require('better-sqlite3')
 const crypto = require('crypto')
 const ejs = require('ejs')
+const geoip = require('geoip-lite')
+require('dotenv').config()
+
+// set up api
+let api = process.env.openweatherapi
+if (api == 'false'){
+    api = false
+}
 
 // setting up db
 let db = _db(path.join(__dirname,'db.db'))
@@ -156,6 +164,30 @@ app.use((req, res, next) => {
     next();
 });
 
+// Helper function to get lat/long from IP using local database
+function getLatLongFromIP(ip) {
+    try {
+        const geo = geoip.lookup(ip);
+        if (geo && geo.ll && geo.ll.length === 2) {
+            return {
+                latitude: geo.ll[0],
+                longitude: geo.ll[1],
+                city: geo.city || 'Unknown',
+                country: geo.country || 'Unknown'
+            };
+        }
+    } catch (error) {
+        console.error('Error looking up IP geolocation:', error);
+    }
+    
+    return {
+        latitude: 39.8283,
+        longitude: -98.5795,
+        city: 'Unknown',
+        country: 'Unknown'
+    };
+}
+
 // Helper function to check if IP is private/local
 function isPrivateIP(ip) {
     // IPv4 private ranges
@@ -215,7 +247,7 @@ app.get('/docs',(req,res)=>{
     try {
         // Dynamically get all SVG files from the svgs directory
         const svgData = fs.readdirSync(path.join(__dirname,'svgs'))
-            .filter(file => file.endsWith('.svg'))
+            .filter(file => file.endsWith('.svg') && !(file === "wait-is-that-my-weather.svg" && !api))
             .map(svgFile => {
                 const displayName = svgFile === 'wait-is-that-my-ip.svg' ? 'wait...? is that my...?' 
                     : svgFile.replace('.svg', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
@@ -251,7 +283,6 @@ app.get('/api/svg-list',(req,res)=>{
         res.status(500).json({error: 'Unable to read SVG files'})
     }
 })
-
 app.get('/svg/views/:x/wait-is-that-my-ip.svg',(req,res)=>{
     console.log(req._ip)
     const svg = fs.readFileSync(path.join(__dirname,'svgs','wait-is-that-my-ip.svg'), 'utf8')
@@ -262,6 +293,74 @@ app.get('/svg/views/:x/wait-is-that-my-ip.svg',(req,res)=>{
     res.type('svg').send(
         ejs.render(svg,{ip:req._ip})
     )
+})
+let weather_cache = {}
+app.get('/svg/views/:x/wait-is-that-my-weather.svg',async (req,res)=>{
+    if (!api){
+        return;
+    }
+    console.log(req._ip)
+    
+    const cacheKey = req._ip;
+    const now = Date.now();
+    const cacheExpiry = 60 * 60 * 1000; 
+    
+    if (weather_cache[cacheKey] && 
+        weather_cache[cacheKey].timestamp && 
+        (now - weather_cache[cacheKey].timestamp) < cacheExpiry) {
+
+        let weather = weather_cache[cacheKey].data
+        weather = JSON.parse(weather).weather[0].description;
+        weather = weather
+        
+        console.log(`Using cached weather data for IP: ${req._ip}`);
+        const svg = fs.readFileSync(path.join(__dirname,'svgs','wait-is-that-my-weather.svg'), 'utf8')
+        
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+        res.type('svg').send(
+            ejs.render(svg, {weather: weather})
+        );
+        return;
+    }
+    
+    try {
+        const geoData = getLatLongFromIP(req._ip);
+        const latitude = geoData.latitude;
+        const longitude = geoData.longitude;
+        
+        console.log(`IP: ${req._ip} -> Lat: ${latitude}, Lon: ${longitude}, City: ${geoData.city}`);
+        
+        let weather = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${api}`)
+        weather = await weather.text()
+        weather = String(weather)
+        
+        weather_cache[cacheKey] = {
+            data: weather,
+            timestamp: now
+        };
+        
+        console.log(`Cached weather data for IP: ${req._ip}`);
+        
+        const svg = fs.readFileSync(path.join(__dirname,'svgs','wait-is-that-my-weather.svg'), 'utf8')
+        console.log(weather)
+        
+        weather = JSON.parse(weather).weather[0].description;
+        weather = weather
+
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+        res.type('svg').send(
+            ejs.render(svg,{weather:weather})
+        )
+    } catch (error) {
+        console.error('Error fetching weather data:', error);
+        res.status(500).send('Error fetching weather data');
+    }
 })
 fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
     app.get(`/svg/views/all/${_svg}`,(req,res)=>{
