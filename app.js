@@ -206,12 +206,33 @@ app.get('/',(req,res)=>{
 })
 
 app.get('/docs',(req,res)=>{
-    ejs.renderFile(path.join(__dirname,'pages','docs.html'),(err,str)=>{
-        if (err){
-            return res.status(500).send('Error rendering docs page')
-        }
-        res.send(str)
-    })
+    try {
+        // Dynamically get all SVG files from the svgs directory
+        const svgData = fs.readdirSync(path.join(__dirname,'svgs'))
+            .filter(file => file.endsWith('.svg'))
+            .map(svgFile => {
+                const displayName = svgFile === 'wait-is-that-my-ip.svg' ? 'wait...? is that my...?' 
+                    : svgFile.replace('.svg', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                const altText = svgFile === 'wait-is-that-my-ip.svg' ? 'hehe' : `${displayName} View Counter`
+                
+                return {
+                    fileName: svgFile,
+                    displayName: displayName,
+                    altText: altText
+                }
+            })
+
+        ejs.renderFile(path.join(__dirname,'pages','docs.html'), { svgData }, (err,str)=>{
+            if (err){
+                console.error('Error rendering docs page:', err)
+                return res.status(500).send('Error rendering docs page')
+            }
+            res.send(str)
+        })
+    } catch (error) {
+        console.error('Error loading SVG files:', error)
+        return res.status(500).send('Error loading documentation')
+    }
 })
 
 app.get('/api/svg-list',(req,res)=>{
@@ -234,6 +255,28 @@ app.get('/svg/views/:x/wait-is-that-my-ip.svg',(req,res)=>{
     res.type('svg').send(
         ejs.render(svg,{ip:req.ip})
     )
+})
+fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
+    app.get(`/svg/views/all/${_svg}`,(req,res)=>{
+        const svg = fs.readFileSync(path.join(__dirname,'svgs',_svg), 'utf8')
+        
+        console.log('all')
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+        let data = { uuid: 'all', views: 0, unique_views: 0 }
+        let _views = db.prepare('SELECT * FROM users').all()
+        let views = 0
+        _views.forEach(x=>{
+            views+=x.views
+        })
+        data.views = views
+        data.unique_views = views
+        res.type('svg').send(
+            ejs.render(svg,data)
+        )
+    })
 })
 
 fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{

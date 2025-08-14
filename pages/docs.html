@@ -221,7 +221,12 @@
         <div class="section">
             <h2>Examples</h2>
             <div id="svg-examples">
-                <!-- SVG examples will be loaded dynamically -->
+                <% svgData.forEach(svg => { %>
+                    <div class="example-svg">
+                        <p><strong><%= svg.displayName %>:</strong></p>
+                        <img src="/svg/views/all/<%= svg.fileName %>" alt="<%= svg.altText %>">
+                    </div>
+                <% }) %>
             </div>
         </div>
 
@@ -260,7 +265,11 @@
                 <div class="form-group">
                     <label for="css-style">Badge Style:</label>
                     <select id="css-style">
-                        <!-- Options will be populated dynamically -->
+                        <% svgData.forEach((svg, index) => { %>
+                            <option value="<%= svg.fileName %>" <%= svg.fileName === 'dark.svg' || (index === 0 && !svgData.some(s => s.fileName === 'dark.svg')) ? 'selected' : '' %>>
+                                <%= svg.displayName %>
+                            </option>
+                        <% }) %>
                     </select>
                 </div>
                 <button class="btn" onclick="generateCssCode()">Generate CSS Code</button>
@@ -322,119 +331,6 @@
                 generateCssCode();
             }
         });
-
-        // Load SVG examples dynamically
-        async function loadSvgExamples() {
-            // Define display names for SVG files
-            const svgDisplayNames = {
-                'default.svg': 'Simple',
-                'dark.svg': 'Dark',
-                'light.svg': 'Light',
-                'sky.svg': 'Sky',
-                'som.svg': 'SoM',
-                'som-2.svg': 'SoM (2)',
-                'wait-is-that-my-ip.svg': 'wait...? is that my...?'
-            };
-
-            // Define the order for display (optional - if not in this list, will appear at end)
-            const displayOrder = [
-                'default.svg',
-                'dark.svg', 
-                'light.svg',
-                'sky.svg',
-                'som.svg',
-                'som-2.svg',
-                'wait-is-that-my-ip.svg'
-            ];
-
-            try {
-                // Get available SVG files from the server
-                const response = await fetch('/api/svg-list');
-                let svgFiles = [];
-                
-                if (response.ok) {
-                    svgFiles = await response.json();
-                } else {
-                    // Fallback to hardcoded list if API doesn't exist
-                    svgFiles = [
-                        'default.svg',
-                        'dark.svg',
-                        'light.svg', 
-                        'sky.svg',
-                        'som.svg',
-                        'som-2.svg',
-                        'wait-is-that-my-ip.svg'
-                    ];
-                }
-
-                // Sort SVG files according to display order
-                const orderedFiles = [];
-                const remainingFiles = [...svgFiles];
-
-                // Add files in specified order
-                displayOrder.forEach(fileName => {
-                    const index = remainingFiles.indexOf(fileName);
-                    if (index !== -1) {
-                        orderedFiles.push(fileName);
-                        remainingFiles.splice(index, 1);
-                    }
-                });
-
-                // Add any remaining files not in the display order
-                orderedFiles.push(...remainingFiles);
-
-                // Generate HTML for each SVG example
-                const examplesContainer = document.getElementById('svg-examples');
-                examplesContainer.innerHTML = '';
-
-                orderedFiles.forEach(svgFile => {
-                    const displayName = svgDisplayNames[svgFile] || svgFile.replace('.svg', '').replace(/-/g, ' ');
-                    const altText = svgFile === 'wait-is-that-my-ip.svg' ? 'hehe' : `${displayName} View Counter`;
-                    
-                    const exampleDiv = document.createElement('div');
-                    exampleDiv.className = 'example-svg';
-                    exampleDiv.innerHTML = `
-                        <p><strong>${displayName}:</strong></p>
-                        <img src="/svg/views/example-uuid/${svgFile}" alt="${altText}">
-                    `;
-                    examplesContainer.appendChild(exampleDiv);
-                });
-
-                // Populate the CSS generator dropdown
-                const cssStyleSelect = document.getElementById('css-style');
-                cssStyleSelect.innerHTML = '';
-
-                orderedFiles.forEach(svgFile => {
-                    const displayName = svgDisplayNames[svgFile] || svgFile.replace('.svg', '').replace(/-/g, ' ');
-                    const option = document.createElement('option');
-                    option.value = svgFile;
-                    option.textContent = displayName;
-                    
-                    // Set default selection (prefer dark.svg if available, otherwise first option)
-                    if (svgFile === 'dark.svg' || (cssStyleSelect.options.length === 0)) {
-                        option.selected = true;
-                    }
-                    
-                    cssStyleSelect.appendChild(option);
-                });
-
-            } catch (error) {
-                console.error('Error loading SVG examples:', error);
-                // Fallback to show error or default content
-                document.getElementById('svg-examples').innerHTML = 
-                    '<p style="color: #ff6b6b;">Error loading SVG examples. Please refresh the page.</p>';
-                
-                // Add fallback options to dropdown
-                const cssStyleSelect = document.getElementById('css-style');
-                cssStyleSelect.innerHTML = `
-                    <option value="dark.svg">Dark</option>
-                    <option value="default.svg">Default</option>
-                `;
-            }
-        }
-
-        // Load SVG examples when page loads
-        document.addEventListener('DOMContentLoaded', loadSvgExamples);
     </script>
 </body>
 </html>
