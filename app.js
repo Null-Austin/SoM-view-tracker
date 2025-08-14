@@ -214,6 +214,17 @@ app.get('/docs',(req,res)=>{
     })
 })
 
+app.get('/api/svg-list',(req,res)=>{
+    try {
+        const svgFiles = fs.readdirSync(path.join(__dirname,'svgs'))
+            .filter(file => file.endsWith('.svg'))
+        res.json(svgFiles)
+    } catch (error) {
+        console.error('Error reading SVG directory:', error)
+        res.status(500).json({error: 'Unable to read SVG files'})
+    }
+})
+
 app.get('/svg/views/:x/wait-is-that-my-ip.svg',(req,res)=>{
     const svg = fs.readFileSync(path.join(__dirname,'svgs','wait-is-that-my-ip.svg'), 'utf8')
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
