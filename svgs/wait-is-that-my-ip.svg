@@ -10,7 +10,7 @@
     </defs>
     <rect x="0" y="0" width="120" height="32" rx="8" fill="url(#grad)" filter="url(#shadow)"/>
     <text x="60" y="20" font-size="16px" font-family="Segoe UI, Arial, sans-serif" fill="#EDD7BC" text-anchor="middle" font-weight="bold" letter-spacing="1"
-          textLength="100" lengthAdjust="spacingAndGlyphs">
+          textLength="100" lengthAdjust="spacing">
         <%= ip %>
     </text>
 </svg>
