@@ -43,6 +43,158 @@ function get(uuid){
 // set up app
 const app = express()
 
+// Configure Express to trust proxies - essential for accurate IP detection
+app.set('trust proxy', true)
+
+// Enhanced IP detection middleware - works with all proxy configurations
+app.use((req, res, next) => {
+    let detectedIp = null;
+    let source = 'unknown';
+    
+    // Priority-ordered list of IP sources
+    const ipSources = [
+        // Cloudflare and CDN headers (highest priority)
+        { header: 'cf-connecting-ip', name: 'Cloudflare' },
+        { header: 'x-real-ip', name: 'Nginx/Real-IP' },
+        { header: 'x-client-ip', name: 'Client-IP' },
+        
+        // Standard forwarded headers
+        { header: 'x-forwarded-for', name: 'X-Forwarded-For', multi: true },
+        { header: 'x-forwarded', name: 'X-Forwarded', multi: true },
+        { header: 'forwarded-for', name: 'Forwarded-For', multi: true },
+        { header: 'forwarded', name: 'RFC7239-Forwarded', multi: true },
+        
+        // Load balancer headers
+        { header: 'x-cluster-client-ip', name: 'Cluster-Client-IP' },
+        { header: 'x-original-forwarded-for', name: 'Original-Forwarded-For', multi: true },
+        
+        // Other proxy headers
+        { header: 'x-remote-ip', name: 'Remote-IP' },
+        { header: 'x-remote-addr', name: 'Remote-Addr' },
+        { header: 'x-proxy-user-ip', name: 'Proxy-User-IP' }
+    ];
+    
+    // Try each IP source in order of priority
+    for (const ipSource of ipSources) {
+        const headerValue = req.headers[ipSource.header];
+        if (headerValue && typeof headerValue === 'string') {
+            let ip = headerValue.trim();
+            
+            // Handle multi-IP headers (comma-separated)
+            if (ipSource.multi) {
+                // Split by comma and take the leftmost IP (original client)
+                const ips = ip.split(',').map(i => i.trim()).filter(i => i);
+                if (ips.length > 0) {
+                    // Skip private/local IPs in forwarded chains if possible
+                    ip = ips.find(i => !isPrivateIP(i)) || ips[0];
+                }
+            }
+            
+            if (ip && isValidIP(ip)) {
+                detectedIp = ip;
+                source = ipSource.name;
+                break;
+            }
+        }
+    }
+    
+    // Fallback to Express's req.ip (uses trust proxy setting)
+    if (!detectedIp && req.ip) {
+        detectedIp = req.ip;
+        source = 'Express-req.ip';
+    }
+    
+    // Final fallbacks for direct connections
+    if (!detectedIp) {
+        const fallbackIps = [
+            req.connection?.remoteAddress,
+            req.socket?.remoteAddress,
+            req.info?.remoteAddress
+        ].filter(Boolean);
+        
+        if (fallbackIps.length > 0) {
+            detectedIp = fallbackIps[0];
+            source = 'Direct-Connection';
+        }
+    }
+    
+    // Ultimate fallback
+    if (!detectedIp) {
+        detectedIp = '127.0.0.1';
+        source = 'Fallback-Localhost';
+        console.warn('No valid IP detected, using localhost fallback');
+    }
+    
+    // Clean up IPv6-mapped IPv4 addresses
+    if (detectedIp.startsWith('::ffff:')) {
+        detectedIp = detectedIp.substring(7);
+        source += '-IPv6Mapped';
+    }
+    
+    // Validate and clean the final IP
+    if (!isValidIP(detectedIp)) {
+        console.warn(`Invalid IP format detected: ${detectedIp} from ${source}, using fallback`);
+        detectedIp = '127.0.0.1';
+        source = 'Invalid-Fallback';
+    }
+    
+    // Set the IP and add metadata for debugging
+    req.ip = detectedIp;
+    req.ipSource = source;
+    
+    // Optional: Log IP detection for debugging (remove in production)
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(`IP: ${detectedIp} (source: ${source})`);
+    }
+    
+    next();
+});
+
+// Helper function to check if IP is private/local
+function isPrivateIP(ip) {
+    // IPv4 private ranges
+    const privateRanges = [
+        /^127\./,          // Loopback
+        /^10\./,           // Private Class A
+        /^172\.(1[6-9]|2[0-9]|3[01])\./,  // Private Class B
+        /^192\.168\./,     // Private Class C
+        /^169\.254\./,     // Link-local
+        /^::1$/,           // IPv6 loopback
+        /^fc00:/,          // IPv6 unique local
+        /^fe80:/           // IPv6 link-local
+    ];
+    
+    return privateRanges.some(range => range.test(ip));
+}
+
+// Helper function to validate IP format
+function isValidIP(ip) {
+    if (!ip || typeof ip !== 'string') return false;
+    
+    // IPv4 validation
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (ipv4Regex.test(ip)) {
+        const parts = ip.split('.');
+        return parts.every(part => {
+            const num = parseInt(part, 10);
+            return num >= 0 && num <= 255;
+        });
+    }
+    
+    // IPv6 validation (basic)
+    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
+    if (ipv6Regex.test(ip)) {
+        return true;
+    }
+    
+    // Compressed IPv6 validation
+    if (ip.includes('::') && ip.split('::').length === 2) {
+        return true;
+    }
+    
+    return false;
+}
+
 // endpoints
 app.get('/',(req,res)=>{
     ejs.renderFile(path.join(__dirname,'pages','index.html'),(err,str)=>{
@@ -62,12 +214,22 @@ app.get('/docs',(req,res)=>{
     })
 })
 
+app.get('/svg/views/:x/wait-is-that-my-ip.svg',(req,res)=>{
+    const svg = fs.readFileSync(path.join(__dirname,'svgs','wait-is-that-my-ip.svg'), 'utf8')
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+    res.type('svg').send(
+        ejs.render(svg,{ip:req.ip})
+    )
+})
+
 fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
-    const svg = fs.readFileSync(path.join(__dirname,'svgs',_svg), 'utf8')
     app.get(`/svg/views/:uuid/${_svg}`,(req,res)=>{
+        const svg = fs.readFileSync(path.join(__dirname,'svgs',_svg), 'utf8')
         let uuid = req.params.uuid
-        let ip = req.headers['x-forwarded-for']?.split(',').shift()?.trim() || req.ip || req.connection.remoteAddress || req.socket.remoteAddress
-        add(uuid, ip)
+        add(uuid, req.ip)
         
         console.log(uuid)
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
