@@ -1,5 +1,12 @@
 // init
 const port = process.env.trackerport || 3000
+let test;
+if (process.argv.includes('-t')){
+    test = true
+    console.log('testing mode')
+} else{
+    test = false
+}
 
 // packages
 const express = require('express')
@@ -98,10 +105,10 @@ app.use((req, res, next) => {
         }
     }
     
-    // Fallback to Express's req.ip (uses trust proxy setting)
-    if (!detectedIp && req.ip) {
-        detectedIp = req.ip;
-        source = 'Express-req.ip';
+    // Fallback to Express's req._ip (uses trust proxy setting)
+    if (!detectedIp && req._ip) {
+        detectedIp = req._ip;
+        source = 'Express-req._ip';
     }
     
     // Final fallbacks for direct connections
@@ -139,12 +146,11 @@ app.use((req, res, next) => {
     }
     
     // Set the IP and add metadata for debugging
-    req.ip = detectedIp;
-    req.ipSource = source;
-    
-    // Optional: Log IP detection for debugging (remove in production)
-    if (process.env.NODE_ENV !== 'production') {
-        console.log(`IP: ${detectedIp} (source: ${source})`);
+    req._ip = detectedIp;
+    req._ipSource = source;
+
+    if (test){
+        req._ip = "6.161.236.94"
     }
     
     next();
@@ -247,13 +253,14 @@ app.get('/api/svg-list',(req,res)=>{
 })
 
 app.get('/svg/views/:x/wait-is-that-my-ip.svg',(req,res)=>{
+    console.log(req._ip)
     const svg = fs.readFileSync(path.join(__dirname,'svgs','wait-is-that-my-ip.svg'), 'utf8')
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.setHeader('Surrogate-Control', 'no-store');
     res.type('svg').send(
-        ejs.render(svg,{ip:req.ip})
+        ejs.render(svg,{ip:req._ip})
     )
 })
 fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
@@ -283,7 +290,7 @@ fs.readdirSync(path.join(__dirname,'svgs')).forEach(_svg=>{
     app.get(`/svg/views/:uuid/${_svg}`,(req,res)=>{
         const svg = fs.readFileSync(path.join(__dirname,'svgs',_svg), 'utf8')
         let uuid = req.params.uuid
-        add(uuid, req.ip)
+        add(uuid, req._ip)
         
         console.log(uuid)
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -300,7 +307,7 @@ app.get('/svg/views/:x/:y',(req,res)=>{
 })
 // app.get('/svg/views/:uuid', (req, res) => {
 //     let uuid = req.params.uuid
-//     let ip = req.ip || req.connection.remoteAddress || req.socket.remoteAddress
+//     let ip = req._ip || req.connection.remoteAddress || req.socket.remoteAddress
     
 //     // Track the view
 //     add(uuid, ip)

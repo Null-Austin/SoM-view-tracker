@@ -4,7 +4,8 @@
   "description": "Tracks your profile views on SoM, requires css",
   "main": "index.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "node app.js -t"
   },
   "repository": {
     "type": "git",
